@@ -255,6 +255,15 @@ function sendMessageToUser(receiverId, payload, senderId) {
   emitToUser(io, receiverId, "receiveMessage", payload, senderId);
 }
 
+function sendEventToUser(userId, event, payload) {
+  if (!io) {
+    console.warn("[Socket] sendEventToUser called before io was initialised");
+    return;
+  }
+
+  emitToUser(io, userId, event, payload);
+}
+
 /**
  * Returns the list of currently online user IDs.
  */
@@ -271,5 +280,6 @@ function isUserOnline(userId) {
 
 module.exports = initSocket;
 module.exports.sendMessageToUser = sendMessageToUser;
+module.exports.sendEventToUser = sendEventToUser;
 module.exports.getOnlineUsers = getOnlineUsers;
 module.exports.isUserOnline = isUserOnline;

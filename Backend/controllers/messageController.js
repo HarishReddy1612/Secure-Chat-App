@@ -4,7 +4,7 @@ const Conversation = require("../models/Conversation");
 
 const { verifyIntegrity, logSecurityEvent, calculateIntegrityScore } = require("../utils/integrityService");
 const { verifySignature } = require("../utils/signatureService");
-const { sendMessageToUser, isUserOnline } = require("../socket/socketHandler");
+const { sendMessageToUser, sendEventToUser, isUserOnline } = require("../socket/socketHandler");
 
 /*
   ARCHITECTURE NOTES
@@ -498,6 +498,17 @@ exports.deleteMessageForEveryone = async (req, res) => {
     message.deletedForEveryone = true;
     await message.save();
 
+    const otherUserId =
+      message.sender.toString() === userId.toString()
+        ? message.receiver.toString()
+        : message.sender.toString();
+
+    sendEventToUser(otherUserId, "messageDeletedForEveryone", {
+      messageId: message._id.toString(),
+      conversationId: message.conversation.toString(),
+      deletedAt: new Date().toISOString(),
+    });
+
     const latestMessage = await Message.findOne({
       conversation: message.conversation,
       deletedFor: { $ne: userId },
@@ -718,4 +729,3 @@ exports.toggleStarMessage = async (req, res) => {
     return res.status(500).json({ error: "Failed to update starred state" });
   }
 };
-

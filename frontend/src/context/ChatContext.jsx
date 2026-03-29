@@ -176,6 +176,65 @@ export function ChatProvider({ children }) {
         });
       });
 
+      socket.on("messageDeletedForEveryone", ({ messageId, conversationId }) => {
+        const deletedMessageId = messageId?.toString();
+        if (!deletedMessageId) return;
+
+        setMessages((prev) => {
+          let changed = false;
+          const next = Object.fromEntries(
+            Object.entries(prev).map(([chatKey, chatMessages]) => {
+              const updatedMessages = chatMessages.map((msg) => {
+                if (msg._id?.toString() !== deletedMessageId) {
+                  return msg;
+                }
+
+                changed = true;
+                return {
+                  ...msg,
+                  message: "This message was deleted",
+                  deletedForEveryone: true,
+                  ciphertext: null,
+                  encryptedKey: null,
+                  senderEncryptedKey: null,
+                  iv: null,
+                  authTag: null,
+                  fingerprint: null,
+                  signature: null,
+                  integrityStatus: "warning",
+                  _decrypted: true,
+                  _needsDecrypt: false,
+                };
+              });
+
+              return [chatKey, updatedMessages];
+            })
+          );
+
+          return changed ? next : prev;
+        });
+
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id?.toString() === conversationId?.toString() ||
+            conv.lastMessage?._id?.toString() === deletedMessageId
+              ? {
+                  ...conv,
+                  lastMessage:
+                    conv.lastMessage?._id?.toString() === deletedMessageId
+                      ? {
+                          ...conv.lastMessage,
+                          message: "This message was deleted",
+                          deletedForEveryone: true,
+                          integrityStatus: "warning",
+                        }
+                      : conv.lastMessage,
+                }
+              : conv
+          )
+        );
+      });
+
       // ── Presence ─────────────────────────────────────────────────────────
       socket.on("userOnline", ({ userId }) => {
         setOnlineUsers((prev) => new Set([...prev, userId.toString()]));
@@ -230,6 +289,7 @@ export function ChatProvider({ children }) {
         socket.off("messageDelivered");
         socket.off("messageRead");
         socket.off("conversationRead");
+        socket.off("messageDeletedForEveryone");
         socket.off("userOnline");
         socket.off("userOffline");
         socket.off("onlineUsers");

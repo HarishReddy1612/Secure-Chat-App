@@ -505,6 +505,7 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
       canDeleteForEveryone:
         !isAIChat &&
         !String(message._id).startsWith("local_") &&
+        !message.deletedForEveryone &&
         message.sender?.toString() === user._id?.toString(),
     });
   }
