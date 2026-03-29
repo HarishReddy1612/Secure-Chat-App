@@ -1,4 +1,6 @@
-const BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
+import { getApiBaseUrl } from "./runtimeConfig";
+
+const BASE = `${getApiBaseUrl()}/auth`;
 
 export async function sendOTP(identifier) {
   const res = await fetch(`${BASE}/send-otp`, {
