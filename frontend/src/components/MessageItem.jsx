@@ -249,9 +249,16 @@ export default function MessageItem({ msg, isMine, onContextMenu }) {
 
       {/* ── Message bubble ── */}
       <div
+        onMouseDown={(e) => {
+          if (!onContextMenu || isPending || e.button !== 2) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu(e, msg);
+        }}
         onContextMenu={(e) => {
           if (!onContextMenu || isPending) return;
           e.preventDefault();
+          e.stopPropagation();
           onContextMenu(e, msg);
         }}
         onClick={() => !isPending && setExpanded((v) => !v)}

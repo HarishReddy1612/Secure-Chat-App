@@ -111,6 +111,7 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
   const bottomRef     = useRef(null);
   const typingTimeout = useRef(null);
   const inputRef      = useRef(null);
+  const menuRef       = useRef(null);
 
   const chatId       = activeChat?._id?.toString();
   const isAIChat     = chatId === AI_CHAT_ID || activeChat?._isAI;
@@ -258,11 +259,17 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
       setMenuState(null);
     }
 
-    window.addEventListener("click", closeMenu);
+    function closeMenuOnPointerDown(event) {
+      if (event.button === 2) return;
+      if (menuRef.current?.contains(event.target)) return;
+      closeMenu();
+    }
+
+    window.addEventListener("pointerdown", closeMenuOnPointerDown);
     window.addEventListener("scroll", closeMenu, true);
 
     return () => {
-      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("pointerdown", closeMenuOnPointerDown);
       window.removeEventListener("scroll", closeMenu, true);
     };
   }, []);
@@ -496,6 +503,8 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
 
   function handleMessageContextMenu(e, message) {
     if (!message?._id) return;
+    e.preventDefault();
+    e.stopPropagation();
     setMenuState({
       x: e.clientX,
       y: e.clientY,
@@ -719,10 +728,14 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
 
   // ── Main chat view ────────────────────────────────────────────────────────
   return (
-    <div className="chat-surface chat-window-layout" style={{
-      flex: 1, display: "flex", flexDirection: "column",
-      height: "100%", overflow: "hidden", position: "relative",
-    }}>
+    <div
+      className="chat-surface chat-window-layout"
+      onContextMenu={(e) => e.preventDefault()}
+      style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        height: "100%", overflow: "hidden", position: "relative",
+      }}
+    >
 
       {/* ── Header ── */}
       <div className="chat-window-header" style={{
@@ -946,22 +959,33 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
         <div ref={bottomRef} />
       </div>
 
-      {menuState && (
+      {menuState && createPortal(
         <div
           style={{
             position: "fixed",
-            top: Math.min(menuState.y, window.innerHeight - 56),
-            left: Math.min(menuState.x, window.innerWidth - 170),
-            background: "var(--bg-2)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            boxShadow: "var(--shadow)",
-            zIndex: 1000,
-            minWidth: 150,
-            overflow: "hidden",
+            inset: 0,
+            zIndex: 100000,
+            pointerEvents: "none",
           }}
-          onClick={(e) => e.stopPropagation()}
         >
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              top: Math.max(8, Math.min(menuState.y, window.innerHeight - 160)),
+              left: Math.max(8, Math.min(menuState.x, window.innerWidth - 190)),
+              background: "#1b1f24",
+              color: "#f5f7fa",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10,
+              boxShadow: "0 20px 45px rgba(0,0,0,0.35)",
+              zIndex: 100001,
+              minWidth: 180,
+              overflow: "hidden",
+              pointerEvents: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
           {menuState.canReply && (
             <button
               type="button"
@@ -970,7 +994,7 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
                 width: "100%",
                 background: "transparent",
                 border: "none",
-                color: "var(--text-primary)",
+                color: "#f5f7fa",
                 textAlign: "left",
                 padding: "12px 14px",
                 fontSize: 13,
@@ -988,12 +1012,12 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
                 width: "100%",
                 background: "transparent",
                 border: "none",
-                color: "var(--warn)",
+                color: "#f0c36d",
                 textAlign: "left",
                 padding: "12px 14px",
                 fontSize: 13,
                 cursor: "pointer",
-                borderTop: menuState.canReply ? "1px solid var(--border)" : "none",
+                borderTop: menuState.canReply ? "1px solid rgba(255,255,255,0.08)" : "none",
               }}
             >
               {menuState.message?.starred ? "Unstar message" : "Star message"}
@@ -1006,12 +1030,12 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
               width: "100%",
               background: "transparent",
               border: "none",
-              color: "var(--danger)",
+              color: "#ff8b8b",
               textAlign: "left",
               padding: "12px 14px",
               fontSize: 13,
               cursor: "pointer",
-              borderTop: (menuState.canReply || menuState.canStar) ? "1px solid var(--border)" : "none",
+              borderTop: (menuState.canReply || menuState.canStar) ? "1px solid rgba(255,255,255,0.08)" : "none",
             }}
           >
             Delete for me
@@ -1024,18 +1048,20 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
                 width: "100%",
                 background: "transparent",
                 border: "none",
-                color: "var(--text-primary)",
+                color: "#f5f7fa",
                 textAlign: "left",
                 padding: "12px 14px",
                 fontSize: 13,
                 cursor: "pointer",
-                borderTop: "1px solid var(--border)",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               Delete for everyone
             </button>
           )}
-        </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Private key warning ── */}
