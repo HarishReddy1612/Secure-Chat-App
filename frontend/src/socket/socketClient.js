@@ -40,8 +40,11 @@ export function connectSocket() {
     reconnectionDelay: 1000,       // start at 1s
     reconnectionDelayMax: 30000,   // cap at 30s
     randomizationFactor: 0.5,      // jitter to avoid thundering herd
-
-    transports: ["websocket"],     // skip long-polling, go straight to WS
+    withCredentials: true,
+    timeout: 20000,
+    // Allow polling fallback for devices/networks where WebSocket upgrade
+    // is blocked or unreliable; Socket.IO will upgrade when possible.
+    transports: ["polling", "websocket"],
   });
 
   // ── Lifecycle events ──────────────────────────────────────────────────────

@@ -42,19 +42,34 @@ export function ChatProvider({ children }) {
   // Keep a ref to activeChat so socket handlers always see the current value
   // without needing to be re-registered on every state change
   const activeChatRef = useRef(null);
+  const attachedSocketRef = useRef(null);
 
   // ── Socket listener registration ───────────────────────────────────────────
-  // We poll for the socket because it is created asynchronously by AuthContext.
-  // Once we get a connected socket we register all listeners and stop polling.
-  const socketListenersRegistered = useRef(false);
-
   useEffect(() => {
-    // Try immediately, then poll every 300ms until the socket is available
-    function registerListeners() {
-      const socket = getSocket();
-      if (!socket || socketListenersRegistered.current) return;
+    function detachListeners(socket = attachedSocketRef.current) {
+      if (!socket) return;
 
-      socketListenersRegistered.current = true;
+      socket.off("receiveMessage");
+      socket.off("messageDelivered");
+      socket.off("messageRead");
+      socket.off("conversationRead");
+      socket.off("messageDeletedForEveryone");
+      socket.off("userOnline");
+      socket.off("userOffline");
+      socket.off("onlineUsers");
+      socket.off("typing");
+      socket.off("stopTyping");
+
+      if (attachedSocketRef.current === socket) {
+        attachedSocketRef.current = null;
+      }
+    }
+
+    function registerListeners(socket) {
+      if (!socket || attachedSocketRef.current === socket) return;
+
+      detachListeners();
+      attachedSocketRef.current = socket;
 
       // ── Incoming encrypted message ───────────────────────────────────────
       // The payload is the full encrypted message object from the server.
@@ -269,34 +284,16 @@ export function ChatProvider({ children }) {
       });
     }
 
-    registerListeners();
+    registerListeners(getSocket());
 
-    // Poll until socket is available (it may not exist yet on first render)
+    // Keep checking in case AuthContext replaces the socket instance later.
     const interval = setInterval(() => {
-      if (socketListenersRegistered.current) {
-        clearInterval(interval);
-        return;
-      }
-      registerListeners();
+      registerListeners(getSocket());
     }, 300);
 
     return () => {
       clearInterval(interval);
-      // Clean up listeners when provider unmounts (e.g. logout)
-      const socket = getSocket();
-      if (socket) {
-        socket.off("receiveMessage");
-        socket.off("messageDelivered");
-        socket.off("messageRead");
-        socket.off("conversationRead");
-        socket.off("messageDeletedForEveryone");
-        socket.off("userOnline");
-        socket.off("userOffline");
-        socket.off("onlineUsers");
-        socket.off("typing");
-        socket.off("stopTyping");
-        socketListenersRegistered.current = false;
-      }
+      detachListeners();
     };
   }, []);
 

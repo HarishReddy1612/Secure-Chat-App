@@ -541,102 +541,116 @@ export default function ChatWindow({ onViewProfile, isMobile = false, onBack }) 
   async function handleDeleteMessage(message) {
     if (!chatId || !message?._id) return;
     setMenuState(null);
-    if (!window.confirm("Delete this message for you?")) return;
+    setConfirmDialog({
+      title: "Delete Message",
+      message: "Delete this message for you?",
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
 
-    const currentMessages = chatMessages;
-    const nextMessages = currentMessages.filter((m) => m._id?.toString() !== message._id?.toString());
-    const fallbackLastMessage = nextMessages[nextMessages.length - 1] || null;
+        const currentMessages = chatMessages;
+        const nextMessages = currentMessages.filter((m) => m._id?.toString() !== message._id?.toString());
+        const fallbackLastMessage = nextMessages[nextMessages.length - 1] || null;
 
-    // Local AI / optimistic-only messages are removed client-side only.
-    if (isAIChat || String(message._id).startsWith("local_")) {
-      setMessagesForChat(chatId, nextMessages);
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.participant?._id?.toString() === chatId
-            ? {
-                ...conv,
-                lastMessage: fallbackLastMessage,
-                updatedAt: fallbackLastMessage?.createdAt || conv.updatedAt,
-              }
-            : conv
-        )
-      );
-      return;
-    }
+        // Local AI / optimistic-only messages are removed client-side only.
+        if (isAIChat || String(message._id).startsWith("local_")) {
+          setMessagesForChat(chatId, nextMessages);
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.participant?._id?.toString() === chatId
+                ? {
+                    ...conv,
+                    lastMessage: fallbackLastMessage,
+                    updatedAt: fallbackLastMessage?.createdAt || conv.updatedAt,
+                  }
+                : conv
+            )
+          );
+          return;
+        }
 
-    try {
-      const res = await deleteMessage(message._id);
+        try {
+          const res = await deleteMessage(message._id);
 
-      setMessagesForChat(chatId, nextMessages);
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.participant?._id?.toString() === chatId
-            ? {
-                ...conv,
-                lastMessage: res?.lastMessage || fallbackLastMessage,
-                updatedAt:
-                  res?.lastMessage?.createdAt ||
-                  fallbackLastMessage?.createdAt ||
-                  conv.updatedAt,
-              }
-            : conv
-        )
-      );
-    } catch (err) {
-      console.error("[ChatWindow] Delete error:", err);
-      alert(err?.error || "Failed to delete message");
-    }
+          setMessagesForChat(chatId, nextMessages);
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.participant?._id?.toString() === chatId
+                ? {
+                    ...conv,
+                    lastMessage: res?.lastMessage || fallbackLastMessage,
+                    updatedAt:
+                      res?.lastMessage?.createdAt ||
+                      fallbackLastMessage?.createdAt ||
+                      conv.updatedAt,
+                  }
+                : conv
+            )
+          );
+        } catch (err) {
+          console.error("[ChatWindow] Delete error:", err);
+          alert(err?.error || "Failed to delete message");
+        }
+      }
+    });
   }
 
   async function handleDeleteMessageForEveryone(message) {
     if (!chatId || !message?._id) return;
     setMenuState(null);
-    if (!window.confirm("Delete this message for everyone?")) return;
+    setConfirmDialog({
+      title: "Delete For Everyone",
+      message: "Delete this message for everyone?",
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
 
-    try {
-      await deleteMessageForEveryone(message._id);
-      setMessagesForChat(chatId, (current) =>
-        current.map((m) =>
-          m._id?.toString() === message._id?.toString()
-            ? {
-                ...m,
-                message: "This message was deleted",
-                deletedForEveryone: true,
-                ciphertext: null,
-                encryptedKey: null,
-                iv: null,
-                authTag: null,
-                fingerprint: null,
-                signature: null,
-                integrityStatus: "warning",
-                _decrypted: true,
-                _needsDecrypt: false,
-              }
-            : m
-        )
-      );
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.participant?._id?.toString() === chatId
-            ? {
-                ...conv,
-                lastMessage:
-                  conv.lastMessage?._id?.toString() === message._id?.toString()
-                    ? {
-                        ...conv.lastMessage,
-                        message: "This message was deleted",
-                        deletedForEveryone: true,
-                        integrityStatus: "warning",
-                      }
-                    : conv.lastMessage,
-              }
-            : conv
-        )
-      );
-    } catch (err) {
-      console.error("[ChatWindow] Delete for everyone error:", err);
-      alert(err?.error || "Failed to delete message for everyone");
-    }
+        try {
+          await deleteMessageForEveryone(message._id);
+          setMessagesForChat(chatId, (current) =>
+            current.map((m) =>
+              m._id?.toString() === message._id?.toString()
+                ? {
+                    ...m,
+                    message: "This message was deleted",
+                    deletedForEveryone: true,
+                    ciphertext: null,
+                    encryptedKey: null,
+                    iv: null,
+                    authTag: null,
+                    fingerprint: null,
+                    signature: null,
+                    integrityStatus: "warning",
+                    _decrypted: true,
+                    _needsDecrypt: false,
+                  }
+                : m
+            )
+          );
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.participant?._id?.toString() === chatId
+                ? {
+                    ...conv,
+                    lastMessage:
+                      conv.lastMessage?._id?.toString() === message._id?.toString()
+                        ? {
+                            ...conv.lastMessage,
+                            message: "This message was deleted",
+                            deletedForEveryone: true,
+                            integrityStatus: "warning",
+                          }
+                        : conv.lastMessage,
+                  }
+                : conv
+            )
+          );
+        } catch (err) {
+          console.error("[ChatWindow] Delete for everyone error:", err);
+          alert(err?.error || "Failed to delete message for everyone");
+        }
+      }
+    });
   }
 
   function handleClearChat() {
