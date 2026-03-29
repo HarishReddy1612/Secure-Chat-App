@@ -18,6 +18,11 @@ const socketHandler    = require("./socket/socketHandler");
 const app    = express();
 const server = http.createServer(app);
 
+// Render runs behind a proxy, so trust forwarded IP headers in production.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // ── CORS ───────────────────────────────────────────────────────────────────
 // Lock down to the frontend origin in all environments.
 // Set CLIENT_URL in .env for production (e.g. https://yourdomain.com).
