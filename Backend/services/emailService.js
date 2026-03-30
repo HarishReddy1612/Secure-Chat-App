@@ -1,9 +1,5 @@
-const nodemailer = require("nodemailer");
-const dns = require("dns");
-
-// THE FIX: Force Node.js to use IPv4 globally for DNS lookups.
-// This completely prevents the ENETUNREACH IPv6 crash on Render.
-dns.setDefaultResultOrder("ipv4first");
+const RESEND_API_URL = "https://api.resend.com/emails";
+const REQUEST_TIMEOUT_MS = 15000;
 
 function buildOtpHtml(otp) {
   return `
@@ -18,28 +14,51 @@ function buildOtpHtml(otp) {
   `;
 }
 
-const sendEmail = async (email, otp) => {
+async function sendWithResend(email, otp) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  if (!from) {
+    throw new Error("EMAIL_FROM is not configured");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587, // Changed to 587 (Standard SMTP)
-      secure: false, // Must be false for port 587
-      requireTLS: true, // Forces encryption
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject: "Your SecureChat OTP Code",
+        html: buildOtpHtml(otp),
+      }),
+      signal: controller.signal,
     });
 
-    const mailOptions = {
-      from: `"SecureChat" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Your SecureChat OTP Code",
-      html: buildOtpHtml(otp),
-    };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const details = data?.message || data?.error || response.statusText;
+      throw new Error(`Resend request failed: ${details}`);
+    }
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully via Gmail:", info.messageId);
+    console.log("Email sent successfully via Resend");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+const sendEmail = async (email, otp) => {
+  try {
+    await sendWithResend(email, otp);
   } catch (error) {
     console.error("Email sending failed:", error);
     throw new Error("Email delivery failed");
