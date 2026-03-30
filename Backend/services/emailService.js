@@ -1,4 +1,9 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+// THE FIX: Force Node.js to use IPv4 globally for DNS lookups.
+// This completely prevents the ENETUNREACH IPv6 crash on Render.
+dns.setDefaultResultOrder("ipv4first");
 
 function buildOtpHtml(otp) {
   return `
@@ -17,13 +22,13 @@ const sendEmail = async (email, otp) => {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true, // Mandatory for Render
+      port: 587, // Changed to 587 (Standard SMTP)
+      secure: false, // Must be false for port 587
+      requireTLS: true, // Forces encryption
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      family: 4
     });
 
     const mailOptions = {
